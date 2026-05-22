@@ -23,6 +23,7 @@ const App = {
 
     // 获取定位（优先 GPS → IP 定位 → 默认）
     this.requestLocation();
+    AmapService.init().catch(() => {});
 
     // 绑定事件
     this._bindEvents();
@@ -38,20 +39,23 @@ const App = {
     });
   },
 
-  // ==================== 定位（三级降级策略） ====================
+  // ==================== 定位（四级降级：高德GPS → 浏览器GPS → 高德IP → 默认） ====================
   requestLocation() {
-    const tryGPS = () => {
-      if (!navigator.geolocation) return Promise.reject("not supported");
+    const tryAmapGPS = () => {
+      return AmapService.getCurrentPosition().catch(() => Promise.reject("amap gps failed"));
+    };
 
+    const tryBrowserGPS = () => {
+      if (!navigator.geolocation) return Promise.reject("not supported");
       return new Promise((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             resolve({
               lat: pos.coords.latitude,
               lng: pos.coords.longitude,
-              address: `当前位置 (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`,
-              name: "GPS 定位",
-              source: "gps",
+              address: `GPS (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`,
+              name: "浏览器定位",
+              source: "browser_gps",
             });
           },
           (err) => reject(err.message),
@@ -60,51 +64,47 @@ const App = {
       });
     };
 
-    const tryIP = async () => {
-      // 免费 IP 定位服务
-      const apis = [
-        "https://ipapi.co/json/",
-        "https://ip-api.com/json/?fields=lat,lon,city,region,country",
-      ];
-      for (const url of apis) {
-        try {
-          const resp = await fetch(url, { signal: AbortSignal.timeout(3000) });
-          const data = await resp.json();
-          if (data.lat && data.lon !== undefined) {
-            const addr = [data.city, data.region, data.country].filter(Boolean).join(", ");
-            return {
-              lat: data.lat || data.latitude,
-              lng: data.lon || data.longitude,
-              address: addr || "IP 定位",
-              name: data.city || "IP 定位",
-              source: "ip",
-            };
-          }
-        } catch { /* try next */ }
-      }
-      throw new Error("IP geolocation failed");
+    const tryAmapIP = () => {
+      return AmapService.ipLocation().catch(() => {
+        // 回退到免费 IP 服务
+        return fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3000) })
+          .then(r => r.json())
+          .then(data => {
+            if (data.latitude && data.longitude) {
+              return {
+                lat: data.latitude, lng: data.longitude,
+                address: [data.city, data.region, data.country_name].filter(Boolean).join(", "),
+                source: "ipapi",
+              };
+            }
+            throw new Error("ipapi failed");
+          });
+      });
     };
 
     const fallback = () => {
-      return {
-        ...DEFAULT_LOCATION,
-        source: "default",
-      };
+      return { ...DEFAULT_LOCATION, source: "default" };
     };
 
-    // 三级降级: GPS → IP → 默认
-    tryGPS()
-      .then(loc => this._setLocation(loc))
+    tryAmapGPS()
+      .then(loc => { this._setLocation(loc); AmapService.reverseGeocode(loc.lat, loc.lng).then(addr => {
+        this.userLocation.address = addr.address;
+        this.userLocation.city = addr.city;
+        this._updateLocationDisplay();
+      }).catch(() => {}); })
       .catch(() => {
-        tryIP()
+        tryBrowserGPS()
           .then(loc => this._setLocation(loc))
           .catch(() => {
-            this._setLocation(fallback());
-            App.toast("定位失败，使用默认位置");
+            tryAmapIP()
+              .then(loc => this._setLocation(loc))
+              .catch(() => {
+                this._setLocation(fallback());
+                App.toast("定位失败，使用默认位置");
+              });
           });
       });
   },
-
   _setLocation(loc) {
     this.userLocation = loc;
     this._updateLocationDisplay();
@@ -249,10 +249,14 @@ const App = {
   },
 
   _generatePlan(parsedState) {
-    this._showLoading("正在规划路线...");
+    this._showLoading("正在通过高德搜索周边...");
 
-    // 模拟计算延迟
-    setTimeout(() => {
+    const loc = this.userLocation || DEFAULT_LOCATION;
+
+    // 优先使用高德真实POI搜索
+    const useAmap = AmapService.isAvailable();
+
+    const doPlan = (pois) => {
       const preferences = {
         budget: parsedState.budget,
         durationHours: parsedState.duration,
@@ -262,26 +266,37 @@ const App = {
         specialRequests: parsedState.specialRequests,
       };
 
-      this.currentPlan = Planner.plan(
-        this.userLocation || DEFAULT_LOCATION,
-        preferences,
-        parsedState.mode
-      );
-
+      this.currentPlan = Planner.plan(loc, preferences, parsedState.mode, pois);
       this._hideLoading();
 
-      // 在对话中添加规划摘要
       const summary = this._buildPlanSummary();
       this._addChatBubble("agent", summary);
-
-      // 渲染路线
       this._renderRoute();
-
-      // 切换到行程Tab
       this.switchTab("route");
 
-      this.toast("✨ 行程规划完成");
-    }, 1500);
+      const source = pois ? "高德实时POI" : "模拟数据";
+      this.toast(`✨ 行程规划完成 (${source})`);
+    };
+
+    if (useAmap) {
+      AmapService.searchNearby(loc.lat, loc.lng, [], 5000)
+        .then(pois => {
+          if (pois.length >= 5) {
+            doPlan(pois);
+          } else {
+            // POI太少，回退模拟数据
+            console.log("[App] 高德POI不足(" + pois.length + ")，使用模拟数据");
+            doPlan(null);
+          }
+        })
+        .catch(() => {
+          console.log("[App] 高德搜索失败，使用模拟数据");
+          doPlan(null);
+        });
+    } else {
+      // 模拟延迟后使用模拟数据
+      setTimeout(() => doPlan(null), 800);
+    }
   },
 
   _buildPlanSummary() {
@@ -595,6 +610,7 @@ const App = {
 
   _useCurrentLocation() {
     this.requestLocation();
+    AmapService.init().catch(() => {});
     this.closeLocationModal();
     this.toast("正在重新定位...");
   },
@@ -708,6 +724,10 @@ const App = {
 
 // 启动应用
 document.addEventListener("DOMContentLoaded", () => App.init());
+
+
+
+
 
 
 
