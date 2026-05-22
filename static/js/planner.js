@@ -16,7 +16,7 @@ const Planner = {
     } = preferences;
 
     // Step 1: 获取周边POI
-        // 使用高德真实POI（优先）或模拟数据
+        // 使用实时POI（优先）或模拟数据
     let pois;
     if (externalPois && externalPois.length > 0) {
       pois = externalPois.map(p => ({ ...p, distance: p.distance || calcDistance(userLocation.lat, userLocation.lng, p.lat, p.lng) }));
@@ -175,9 +175,9 @@ const Planner = {
       const travelMode = mode === "family" ? "drive" : "drive";
             const travelTime = calcTravelTime(dist, travelMode);
 
-      // 异步补充：尝试获取高德真实驾车路线（同步回退）
-      if (typeof AmapService !== "undefined" && AmapService.isAvailable()) {
-        stop._amapTransit = AmapService.getDrivingRoute(currentLat, currentLng, stop.lat, stop.lng);
+      // 异步补充：尝试获取实时驾车路线（同步回退）
+      if (typeof GeoService !== "undefined" && GeoService.isAvailable()) {
+        stop._geoTransit = GeoService.getDrivingRoute(currentLat, currentLng, stop.lat, stop.lng);
       }
 
       const arrival = cumulativeMinutes + travelTime;
@@ -295,5 +295,7 @@ const Planner = {
     return text;
   },
 };
+
+
 
 

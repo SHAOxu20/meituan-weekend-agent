@@ -23,7 +23,7 @@ const App = {
 
     // 获取定位（优先 GPS → IP 定位 → 默认）
     this.requestLocation();
-    AmapService.init().catch(() => {});
+    GeoService.init().catch(() => {});
 
     // 绑定事件
     this._bindEvents();
@@ -39,10 +39,10 @@ const App = {
     });
   },
 
-  // ==================== 定位（四级降级：高德GPS → 浏览器GPS → 高德IP → 默认） ====================
+  // ==================== 定位（四级降级：GPS → 浏览器GPS → IP → 默认） ====================
   requestLocation() {
-    const tryAmapGPS = () => {
-      return AmapService.getCurrentPosition().catch(() => Promise.reject("amap gps failed"));
+    const tryGPS = () => {
+      return GeoService.getCurrentPosition().catch(() => Promise.reject("gps failed"));
     };
 
     const tryBrowserGPS = () => {
@@ -64,8 +64,8 @@ const App = {
       });
     };
 
-    const tryAmapIP = () => {
-      return AmapService.ipLocation().catch(() => {
+    const tryIP = () => {
+      return GeoService.ipLocation().catch(() => {
         // 回退到免费 IP 服务
         return fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3000) })
           .then(r => r.json())
@@ -86,8 +86,8 @@ const App = {
       return { ...DEFAULT_LOCATION, source: "default" };
     };
 
-    tryAmapGPS()
-      .then(loc => { this._setLocation(loc); AmapService.reverseGeocode(loc.lat, loc.lng).then(addr => {
+    tryGPS()
+      .then(loc => { this._setLocation(loc); GeoService.reverseGeocode(loc.lat, loc.lng).then(addr => {
         this.userLocation.address = addr.address;
         this.userLocation.city = addr.city;
         this._updateLocationDisplay();
@@ -96,7 +96,7 @@ const App = {
         tryBrowserGPS()
           .then(loc => this._setLocation(loc))
           .catch(() => {
-            tryAmapIP()
+            tryIP()
               .then(loc => this._setLocation(loc))
               .catch(() => {
                 this._setLocation(fallback());
@@ -249,14 +249,11 @@ const App = {
   },
 
   _generatePlan(parsedState) {
-    this._showLoading("正在通过高德搜索周边...");
+    this._showLoading("正在规划路线...");
 
     const loc = this.userLocation || DEFAULT_LOCATION;
 
-    // 优先使用高德真实POI搜索
-    const useAmap = AmapService.isAvailable();
-
-    const doPlan = (pois) => {
+    setTimeout(() => {
       const preferences = {
         budget: parsedState.budget,
         durationHours: parsedState.duration,
@@ -266,37 +263,16 @@ const App = {
         specialRequests: parsedState.specialRequests,
       };
 
-      this.currentPlan = Planner.plan(loc, preferences, parsedState.mode, pois);
+      // POI数据已根据用户位置动态生成（data.js 中的 getPOIDatabase）
+      this.currentPlan = Planner.plan(loc, preferences, parsedState.mode, null);
       this._hideLoading();
 
       const summary = this._buildPlanSummary();
       this._addChatBubble("agent", summary);
       this._renderRoute();
       this.switchTab("route");
-
-      const source = pois ? "高德实时POI" : "模拟数据";
-      this.toast(`✨ 行程规划完成 (${source})`);
-    };
-
-    if (useAmap) {
-      AmapService.searchNearby(loc.lat, loc.lng, [], 5000)
-        .then(pois => {
-          if (pois.length >= 5) {
-            doPlan(pois);
-          } else {
-            // POI太少，回退模拟数据
-            console.log("[App] 高德POI不足(" + pois.length + ")，使用模拟数据");
-            doPlan(null);
-          }
-        })
-        .catch(() => {
-          console.log("[App] 高德搜索失败，使用模拟数据");
-          doPlan(null);
-        });
-    } else {
-      // 模拟延迟后使用模拟数据
-      setTimeout(() => doPlan(null), 800);
-    }
+      this.toast("✨ 行程规划完成");
+    }, 800);
   },
 
   _buildPlanSummary() {
@@ -610,7 +586,7 @@ const App = {
 
   _useCurrentLocation() {
     this.requestLocation();
-    AmapService.init().catch(() => {});
+    GeoService.init().catch(() => {});
     this.closeLocationModal();
     this.toast("正在重新定位...");
   },
@@ -724,6 +700,9 @@ const App = {
 
 // 启动应用
 document.addEventListener("DOMContentLoaded", () => App.init());
+
+
+
 
 
 
