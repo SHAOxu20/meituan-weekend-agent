@@ -1,0 +1,17 @@
+﻿# Self-signed cert files (generated locally)
+cert.pem
+key.pem
+
+# Python server script
+server.py
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Node (if any later)
+node_modules/
