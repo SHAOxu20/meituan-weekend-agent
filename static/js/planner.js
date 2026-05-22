@@ -176,8 +176,8 @@ const Planner = {
             const travelTime = calcTravelTime(dist, travelMode);
 
       // 异步补充：尝试获取实时驾车路线（同步回退）
-      if (typeof GeoService !== "undefined" && GeoService.isAvailable()) {
-        stop._geoTransit = GeoService.getDrivingRoute(currentLat, currentLng, stop.lat, stop.lng);
+      if (typeof AmapService !== "undefined" && AmapService.isAvailable()) {
+        stop._geoTransit = AmapService.getDrivingRoute(currentLat, currentLng, stop.lat, stop.lng);
       }
 
       const arrival = cumulativeMinutes + travelTime;
@@ -295,6 +295,7 @@ const Planner = {
     return text;
   },
 };
+
 
 
 
