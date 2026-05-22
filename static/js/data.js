@@ -11,7 +11,7 @@ const POI_TEMPLATES = [
     hours: "11:00-03:00", tags: ["火锅", "服务好", "聚会"], familyFriendly: 3,
     meituanUrl: "https://meituan.com/shop/e001", meituanScheme: "meituan://shop/e001",
     emoji: "🍲", stayMinutes: 90, needReserve: true },
-  { id: "e002", name: "大董烤鸭", category: "餐饮", subcategory: "北京菜",
+  { id: "e002", name: "大董烤鸭", category: "餐饮", subcategory: "中式正餐",
     rating: 4.7, price: 280, priceLabel: "￥280/人",
     hours: "11:00-21:30", tags: ["烤鸭", "京菜", "商务宴请"], familyFriendly: 4,
     meituanUrl: "https://meituan.com/shop/e002", meituanScheme: "meituan://shop/e002",
@@ -53,7 +53,7 @@ const POI_TEMPLATES = [
     emoji: "🍕", stayMinutes: 60, needReserve: false },
   { id: "e010", name: "南门涮肉", category: "餐饮", subcategory: "火锅",
     rating: 4.6, price: 120, priceLabel: "￥120/人",
-    hours: "10:30-22:00", tags: ["铜锅涮肉", "老北京", "传统"], familyFriendly: 4,
+    hours: "10:30-22:00", tags: ["火锅", "聚会", "传统"], familyFriendly: 4,
     meituanUrl: "https://meituan.com/shop/e010", meituanScheme: "meituan://shop/e010",
     emoji: "🥘", stayMinutes: 90, needReserve: false },
 
@@ -68,7 +68,7 @@ const POI_TEMPLATES = [
     hours: "10:00-18:00", tags: ["艺术", "拍照", "文艺"], familyFriendly: 3,
     meituanUrl: "https://meituan.com/shop/s002", meituanScheme: "meituan://shop/s002",
     emoji: "🎨", stayMinutes: 120, needReserve: false },
-  { id: "s003", name: "欢乐谷主题乐园", category: "景点", subcategory: "主题乐园",
+  { id: "s003", name: "城市主题乐园", category: "景点", subcategory: "主题乐园",
     rating: 4.4, price: 299, priceLabel: "￥299/人",
     hours: "09:30-21:00", tags: ["游乐园", "刺激", "亲子"], familyFriendly: 4,
     meituanUrl: "https://meituan.com/shop/s003", meituanScheme: "meituan://shop/s003",
@@ -174,7 +174,7 @@ const POI_TEMPLATES = [
     hours: "10:00-22:00", tags: ["购物中心", "美食街", "亲子"], familyFriendly: 4,
     meituanUrl: "https://meituan.com/shop/m003", meituanScheme: "meituan://shop/m003",
     emoji: "🛒", stayMinutes: 120, needReserve: false },
-  { id: "m004", name: "颐堤港购物中心", category: "购物", subcategory: "购物中心",
+  { id: "m004", name: "生活购物中心", category: "购物", subcategory: "购物中心",
     rating: 4.5, price: 0, priceLabel: "免费(消费另计)",
     hours: "10:00-22:00", tags: ["购物中心", "亲子", "电影院"], familyFriendly: 4,
     meituanUrl: "https://meituan.com/shop/m004", meituanScheme: "meituan://shop/m004",
@@ -288,3 +288,4 @@ const DEFAULT_LOCATION = {
 
 // 兼容旧代码的全局 POI_DATABASE（默认使用上海坐标）
 const POI_DATABASE = getPOIDatabase(DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lng);
+

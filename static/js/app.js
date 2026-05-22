@@ -580,7 +580,7 @@ const App = {
           <button onclick="App._setManualAddress()">确定</button>
         </div>
         <div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:8px;">
-          ${["朝阳大悦城", "三里屯太古里", "蓝色港湾", "国贸CBD", "望京SOHO"].map(addr =>
+          ${["城市中心", "商业步行街", "滨水街区", "CBD商圈", "大学城周边"].map(addr =>
             `<div style="padding:8px 14px;background:#f5f5f5;border-radius:16px;font-size:13px;cursor:pointer;" onclick="App._quickAddress('${addr}')">${addr}</div>`
           ).join("")}
         </div>
@@ -605,11 +605,11 @@ const App = {
     if (!addr) return;
 
     const coordMap = {
-      "朝阳大悦城": { lat: 39.9245, lng: 116.5180 },
-      "三里屯": { lat: 39.9345, lng: 116.4550 },
-      "蓝色港湾": { lat: 39.9512, lng: 116.4730 },
-      "国贸": { lat: 39.9087, lng: 116.4605 },
-      "望京": { lat: 39.9982, lng: 116.4819 },
+      "市中心": { lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng },
+      "商业街": { lat: DEFAULT_LOCATION.lat + 0.01, lng: DEFAULT_LOCATION.lng + 0.01 },
+      "滨水区": { lat: DEFAULT_LOCATION.lat - 0.008, lng: DEFAULT_LOCATION.lng + 0.012 },
+      "CBD": { lat: DEFAULT_LOCATION.lat - 0.012, lng: DEFAULT_LOCATION.lng - 0.005 },
+      "大学城": { lat: DEFAULT_LOCATION.lat + 0.015, lng: DEFAULT_LOCATION.lng - 0.01 },
     };
 
     let coord = null;
@@ -708,5 +708,6 @@ const App = {
 
 // 启动应用
 document.addEventListener("DOMContentLoaded", () => App.init());
+
 
 
