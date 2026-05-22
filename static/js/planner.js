@@ -200,22 +200,66 @@ const Planner = {
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
   },
 
-  // 调整方案 (替换某个点位)
-  adjust(plan, removeStopIndex, newPreference) {
+  // ==================== 方案调整 ====================
+
+  // 替换某个点位（按类别）
+  replaceStop(plan, category) {
     const stops = [...plan.stops];
-    const removed = stops.splice(removeStopIndex, 1)[0];
+    const idx = stops.findIndex(s => s.category === category);
+    if (idx === -1) return plan; // 没有该类别，无需替换
+
+    const removed = stops.splice(idx, 1)[0];
     const usedIds = new Set(stops.map(s => s.id));
 
-    // 获取同类别替代
     const alternatives = getNearbyPOIs(plan.userLocation.lat, plan.userLocation.lng, 8)
-      .filter(p => p.category === removed.category && !usedIds.has(p.id))
+      .filter(p => p.category === category && !usedIds.has(p.id))
       .sort((a, b) => b.rating - a.rating);
 
     if (alternatives.length > 0) {
-      stops.splice(removeStopIndex, 0, alternatives[0]);
+      stops.splice(idx, 0, alternatives[0]);
     }
 
     return { ...plan, stops: this._optimizeTimeline(stops, plan.userLocation, plan.mode) };
+  },
+
+  // 增加一个点位
+  addStop(plan, category) {
+    const stops = [...plan.stops];
+    const usedIds = new Set(stops.map(s => s.id));
+    const lastStop = stops[stops.length - 1];
+
+    const candidates = getNearbyPOIs(
+      lastStop ? lastStop.lat : plan.userLocation.lat,
+      lastStop ? lastStop.lng : plan.userLocation.lng,
+      5
+    )
+      .filter(p => (category ? p.category === category : true) && !usedIds.has(p.id))
+      .sort((a, b) => b.rating - a.rating);
+
+    if (candidates.length > 0) {
+      stops.push(candidates[0]);
+    }
+
+    return { ...plan, stops: this._optimizeTimeline(stops, plan.userLocation, plan.mode) };
+  },
+
+  // 移除最后一个点位（缩短行程）
+  removeLastStop(plan) {
+    if (plan.stops.length <= 2) return plan;
+    const stops = plan.stops.slice(0, -1);
+    return { ...plan, stops: this._optimizeTimeline(stops, plan.userLocation, plan.mode) };
+  },
+
+  // 按评分重新排序（只看高评分 4.5+）
+  filterByHighRating(plan) {
+    const filtered = plan.stops.filter(s => s.rating >= 4.5);
+    if (filtered.length < 2) return plan;
+    return { ...plan, stops: this._optimizeTimeline(filtered, plan.userLocation, plan.mode) };
+  },
+
+  // 旧版兼容
+  adjust(plan, removeStopIndex) {
+    return this.replaceStop(plan, plan.stops[removeStopIndex]?.category);
   },
 
   // 生成分享文本
@@ -240,3 +284,4 @@ const Planner = {
     return text;
   },
 };
+

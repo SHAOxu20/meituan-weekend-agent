@@ -167,24 +167,85 @@ const App = {
   },
 
   _processUserMessage(text) {
-    // 显示打字中
     this._showTyping();
+
+    // 判断是否为调整请求（有现有方案 + 包含调整关键词）
+    const isAdjust = this.currentPlan && /换|改|调整|替换|换一[个下]|加一[个下]|增加|去掉|删除|缩短|只看|高分|高评分|便宜/.test(text);
 
     setTimeout(() => {
       this._hideTyping();
 
-      // 解析意图
+      if (isAdjust) {
+        this._handleAdjustment(text);
+      } else {
+        // 新规划流程
+        const parsed = Chat.parseIntent(text);
+        const response = Chat.generateResponse(text, parsed);
+        this._addChatBubble("agent", response);
+        this._updateQuickActions("confirm");
+        setTimeout(() => this._generatePlan(parsed), 800);
+      }
+    }, 800);
+  },
+
+  _handleAdjustment(text) {
+    if (!this.currentPlan) return;
+
+    let newPlan = null;
+    let response = "";
+
+    // 匹配调整类型
+    const catMap = { "餐饮": "餐饮", "吃饭": "餐饮", "餐厅": "餐饮",
+                     "景点": "景点", "公园": "景点",
+                     "亲子": "亲子", "儿童": "亲子",
+                     "购物": "购物", "逛街": "购物",
+                     "休闲": "休闲娱乐", "娱乐": "休闲娱乐", "玩": "休闲娱乐" };
+
+    // "换一个XX"
+    const replaceMatch = text.match(/换一?[个下]?(\S{1,3})/);
+    if (replaceMatch) {
+      const cat = catMap[replaceMatch[1]] || replaceMatch[1];
+      newPlan = Planner.replaceStop(this.currentPlan, cat);
+      response = `好的，帮你换了${cat || "一个"}选择 ✅`;
+    }
+
+    // "加一个XX"
+    if (!newPlan) {
+      const addMatch = text.match(/加一?[个下]?(\S{1,3})/);
+      if (addMatch) {
+        const cat = catMap[addMatch[1]] || addMatch[1];
+        newPlan = Planner.addStop(this.currentPlan, cat);
+        response = `好的，帮你增加了${cat || "一个新去处"} ✅`;
+      }
+    }
+
+    // "缩短"/"去掉"
+    if (!newPlan && /缩短|去掉|删除|减[少去]|太[多长]/.test(text)) {
+      newPlan = Planner.removeLastStop(this.currentPlan);
+      response = "好的，帮你精简了行程 ✅";
+    }
+
+    // "高评分"/"高分"
+    if (!newPlan && /高分|高评分/.test(text)) {
+      newPlan = Planner.filterByHighRating(this.currentPlan);
+      response = "好的，只保留评分 4.5 以上的点位 ✅";
+    }
+
+    // 兜底：当作新规划
+    if (!newPlan) {
       const parsed = Chat.parseIntent(text);
-      const response = Chat.generateResponse(text, parsed);
-
+      response = Chat.generateResponse(text, parsed);
       this._addChatBubble("agent", response);
-
-      // 更新快捷操作
-      this._updateQuickActions("confirm");
-
-      // 自动规划
       setTimeout(() => this._generatePlan(parsed), 800);
-    }, 1000 + Math.random() * 800);
+      return;
+    }
+
+    this.currentPlan = newPlan;
+    this._addChatBubble("agent", response + "\n\n行程已更新，点击下方 **「行程」** 标签查看 →");
+    this._renderRoute();
+    this._updateQuickActions("adjust");
+    this.switchTab("route");
+    this.toast("行程已更新");
   },
 
   _generatePlan(parsedState) {
@@ -647,4 +708,5 @@ const App = {
 
 // 启动应用
 document.addEventListener("DOMContentLoaded", () => App.init());
+
 
