@@ -13,7 +13,7 @@ const POI_TEMPLATES = [
     emoji: "🍲", stayMinutes: 90, needReserve: true },
   { id: "e002", name: "大董烤鸭", category: "餐饮", subcategory: "中式正餐",
     rating: 4.7, price: 280, priceLabel: "￥280/人",
-    hours: "11:00-21:30", tags: ["烤鸭", "京菜", "商务宴请"], familyFriendly: 4,
+    hours: "11:00-21:30", tags: ["烤鸭", "正餐", "商务宴请"], familyFriendly: 4,
     meituanUrl: "https://meituan.com/shop/e002", meituanScheme: "meituan://shop/e002",
     emoji: "🦆", stayMinutes: 90, needReserve: true },
   { id: "e003", name: "西贝莜面村", category: "餐饮", subcategory: "西北菜",
@@ -288,4 +288,5 @@ const DEFAULT_LOCATION = {
 
 // 兼容旧代码的全局 POI_DATABASE（默认使用上海坐标）
 const POI_DATABASE = getPOIDatabase(DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lng);
+
 

@@ -43,7 +43,7 @@ const Chat = {
     { regex: /(一天|全天|整天|6[-\s]*[7-8]\s*小?时|[六七八]\s*小?时)/i, extract: (m) => ({ duration: 8 }) },
     { regex: /(2[-\s]*[3-4]\s*小?时|[一二两]\s*小?时|短线)/i, extract: (m) => ({ duration: 3 }) },
     // 预算
-    { regex: /(便宜|省钱|人均(\\d+以下|低于\\d+)?|预算\\d+|\\d+[块元]以内)/i,
+    { regex: /(便宜|省钱|人均(\d+以下|低于\d+)?|预算\\d+|\\d+[块元]以内)/i,
       extract: (m) => {
         const num = m[0].match(/\d+/);
         if (num) return { budget: parseInt(num[0]) };
@@ -160,3 +160,4 @@ const Chat = {
     this.history = [];
   },
 };
+

@@ -12,6 +12,16 @@ const App = {
     return getPOIDatabase(loc.lat, loc.lng);
   },
   currentPlan: null,
+  // 当前方案中的POI缓存（包含高德+模拟数据）
+  _poiLookup: {},
+
+  // 统一POI查找（先查当前方案，再查模拟DB）
+  _findPoi(poiId) {
+    if (this._poiLookup[poiId]) return this._poiLookup[poiId];
+    // 回退到模拟数据
+    const loc = this.userLocation || DEFAULT_LOCATION;
+    return getPOIDatabase(loc.lat, loc.lng).find(p => p.id === poiId);
+  },
   currentTab: "home",
 
   // ==================== 初始化 ====================
@@ -241,6 +251,7 @@ const App = {
     }
 
     this.currentPlan = newPlan;
+        this._poiLookup = {}; newPlan.stops.forEach(s => { this._poiLookup[s.id] = s; });
     this._addChatBubble("agent", response + "\n\n行程已更新，点击下方 **「行程」** 标签查看 →");
     this._renderRoute();
     this._updateQuickActions("adjust");
@@ -265,6 +276,9 @@ const App = {
       };
 
       this.currentPlan = Planner.plan(loc, preferences, parsedState.mode, pois);
+      // 建立POI索引，方便后续查找（支持高德+模拟数据）
+      this._poiLookup = {};
+      this.currentPlan.stops.forEach(s => { this._poiLookup[s.id] = s; });
       this._hideLoading();
 
       const summary = this._buildPlanSummary();
@@ -306,7 +320,7 @@ const App = {
       html += `<div class="poi-img">${stop.emoji}</div>`;
       html += `<div class="poi-info">`;
       html += `<div class="name">${stop.order}. ${stop.name}</div>`;
-      html += `<div class="meta">⭐${stop.rating} · ${stop.priceLabel} · ${stop.arrivalTime}-${stop.departureTime}</div>`;
+      html += `<div class="meta">⭐ ${(stop.rating && !isNaN(stop.rating) ? stop.rating.toFixed(1) : "暂无")} · ${stop.priceLabel} · ${stop.arrivalTime}-${stop.departureTime}</div>`;
       html += `</div></div>`;
     }
     html += `</div>`;
@@ -377,7 +391,7 @@ const App = {
           <span class="stop-type-badge ${typeClass}">${stop.subcategory || stop.category}</span>
           <div class="stop-name">${stop.emoji} ${stop.name}</div>
           <div class="stop-meta">
-            <span>⭐ ${stop.rating}</span>
+            <span>⭐ ${(stop.rating && !isNaN(stop.rating) ? stop.rating.toFixed(1) : stop.rating || "暂无")}</span>
             <span>💰 ${stop.priceLabel}</span>
             <span>⏱ ${stop.arrivalTime}-${stop.departureTime}</span>
           </div>
@@ -394,7 +408,7 @@ const App = {
 
   // ==================== POI 详情弹窗 ====================
   _showPoiDetail(poiId) {
-    const poi = this._getPoiDb().find(p => p.id === poiId);
+    const poi = this._findPoi(poiId);
     if (!poi) return;
 
     const content = document.getElementById("poiModalContent");
@@ -406,7 +420,7 @@ const App = {
             <div class="poi-detail-name">${poi.name}</div>
             <div class="poi-detail-category">${poi.category} · ${poi.subcategory || ""}</div>
             <div class="poi-detail-rating">
-              <span class="stars">★★★★★</span> <span>${poi.rating}</span>
+              <span class="stars">★★★★★</span> <span>${(poi.rating && !isNaN(poi.rating) ? poi.rating.toFixed(1) : poi.rating || "暂无")}</span>
             </div>
           </div>
         </div>
@@ -448,7 +462,7 @@ const App = {
 
   // ==================== 美团跳转 ====================
   _viewOnMeituan(poiId) {
-    const poi = this._getPoiDb().find(p => p.id === poiId);
+    const poi = this._findPoi(poiId);
     if (!poi) return;
 
     const scheme = poi.meituanScheme || `meituan://shop/${poiId}`;
@@ -467,7 +481,7 @@ const App = {
   },
 
   _bookSingle(poiId) {
-    const poi = this._getPoiDb().find(p => p.id === poiId);
+    const poi = this._findPoi(poiId);
     if (!poi) return;
 
     this._showBooking([poi]);
@@ -482,7 +496,7 @@ const App = {
 
     const pois = this.currentPlan.stops
       .filter(s => s.needReserve)
-      .map(s => this._getPoiDb().find(p => p.id === s.id))
+      .map(s => this._findPoi(s.id))
       .filter(Boolean);
 
     if (pois.length === 0) {
@@ -720,6 +734,11 @@ const App = {
 
 // 启动应用
 document.addEventListener("DOMContentLoaded", () => App.init());
+
+
+
+
+
 
 
 

@@ -175,10 +175,6 @@ const Planner = {
       const travelMode = mode === "family" ? "drive" : "drive";
             const travelTime = calcTravelTime(dist, travelMode);
 
-      // 异步补充：尝试获取实时驾车路线（同步回退）
-      if (typeof AmapService !== "undefined" && AmapService.isAvailable()) {
-        stop._geoTransit = AmapService.getDrivingRoute(currentLat, currentLng, stop.lat, stop.lng);
-      }
 
       const arrival = cumulativeMinutes + travelTime;
       const departure = arrival + stop.stayMinutes;
@@ -295,6 +291,7 @@ const Planner = {
     return text;
   },
 };
+
 
 
 
