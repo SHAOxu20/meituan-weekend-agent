@@ -49,72 +49,81 @@ const App = {
     });
   },
 
-  // ==================== 定位（四级降级：GPS → 浏览器GPS → IP → 默认） ====================
+  // ==================== 定位（多源融合引擎 → 高德GPS → 浏览器GPS → IP → 默认） ====================
   requestLocation() {
-    const tryGPS = () => {
-      return AmapService.getCurrentPosition().catch(() => Promise.reject("gps failed"));
-    };
-
-    const tryBrowserGPS = () => {
-      if (!navigator.geolocation) return Promise.reject("not supported");
-      return new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            resolve({
-              lat: pos.coords.latitude,
-              lng: pos.coords.longitude,
-              address: `GPS (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`,
-              name: "浏览器定位",
-              source: "browser_gps",
-            });
-          },
-          (err) => reject(err.message),
-          { enableHighAccuracy: true, timeout: 5000, maximumAge: 300000 }
-        );
-      });
-    };
-
-    const tryIP = () => {
-      return AmapService.ipLocation().catch(() => {
-        // 回退到免费 IP 服务
-        return fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3000) })
-          .then(r => r.json())
-          .then(data => {
-            if (data.latitude && data.longitude) {
-              return {
-                lat: data.latitude, lng: data.longitude,
-                address: [data.city, data.region, data.country_name].filter(Boolean).join(", "),
-                source: "ipapi",
-              };
-            }
-            throw new Error("ipapi failed");
-          });
-      });
-    };
-
-    const fallback = () => {
-      return { ...DEFAULT_LOCATION, source: "default" };
-    };
-
-    tryGPS()
-      .then(loc => { this._setLocation(loc); AmapService.reverseGeocode(loc.lat, loc.lng).then(addr => {
-        this.userLocation.address = addr.address;
-        this.userLocation.city = addr.city;
-        this._updateLocationDisplay();
-      }).catch(() => {}); })
+    // 优先使用多源融合定位引擎
+    LocationEngine.getPosition({ sampleCount: 5, timeout: 12000 })
+      .then(result => {
+        const output = LocationEngine.formatOutput(result);
+        const loc = {
+          lat: output.location.gcj02 ? output.location.gcj02.lat : output.location.wgs84.lat,
+          lng: output.location.gcj02 ? output.location.gcj02.lng : output.location.wgs84.lng,
+          address: output.address || `${output.location.wgs84.lat.toFixed(4)}, ${output.location.wgs84.lng.toFixed(4)}`,
+          city: output.city,
+          district: output.district,
+          province: output.province,
+          accuracy: output.accuracy,
+          confidence: output.confidence,
+          source: "fusion",
+        };
+        this._setLocation(loc);
+      })
       .catch(() => {
-        tryBrowserGPS()
-          .then(loc => this._setLocation(loc))
+        // 回退: 高德GPS
+        AmapService.getCurrentPosition()
+          .then(loc => {
+            this._setLocation(loc);
+            AmapService.reverseGeocode(loc.lat, loc.lng).then(addr => {
+              if (addr) {
+                this.userLocation.address = addr.address;
+                this.userLocation.city = addr.city;
+                this._updateLocationDisplay();
+              }
+            }).catch(() => {});
+          })
           .catch(() => {
-            tryIP()
-              .then(loc => this._setLocation(loc))
-              .catch(() => {
-                this._setLocation(fallback());
-                App.toast("定位失败，使用默认位置");
-              });
+            // 回退: 浏览器GPS
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                  this._setLocation({
+                    lat: pos.coords.latitude, lng: pos.coords.longitude,
+                    address: `GPS (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`,
+                    source: "browser_gps",
+                  });
+                },
+                () => this._fallbackIP(),
+                { enableHighAccuracy: true, timeout: 5000, maximumAge: 300000 }
+              );
+            } else {
+              this._fallbackIP();
+            }
           });
       });
   },
+
+  _fallbackIP() {
+    AmapService.ipLocation()
+      .then(loc => this._setLocation(loc))
+      .catch(() => {
+        fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3000) })
+          .then(r => r.json())
+          .then(data => {
+            if (data.latitude && data.longitude) {
+              this._setLocation({
+                lat: data.latitude, lng: data.longitude,
+                address: [data.city, data.region, data.country_name].filter(Boolean).join(", "),
+                source: "ipapi",
+              });
+            }
+          })
+          .catch(() => {
+            this._setLocation({ ...DEFAULT_LOCATION, source: "default" });
+            App.toast("定位失败，使用默认位置");
+          });
+      });
+  },
+
   _setLocation(loc) {
     this.userLocation = loc;
     this._updateLocationDisplay();
@@ -734,6 +743,7 @@ const App = {
 
 // 启动应用
 document.addEventListener("DOMContentLoaded", () => App.init());
+
 
 
 
