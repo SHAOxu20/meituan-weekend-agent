@@ -8,7 +8,7 @@ const App = {
 
   // 获取当前用户位置下的POI数据库
   _getPoiDb() {
-    const loc = this.userLocation || DEFAULT_LOCATION;
+    const loc = this.userLocation; if (!loc) return [];
     return getPOIDatabase(loc.lat, loc.lng);
   },
   currentPlan: null,
@@ -19,7 +19,7 @@ const App = {
   _findPoi(poiId) {
     if (this._poiLookup[poiId]) return this._poiLookup[poiId];
     // 回退到模拟数据
-    const loc = this.userLocation || DEFAULT_LOCATION;
+    const loc = this.userLocation; if (!loc) return null;
     return getPOIDatabase(loc.lat, loc.lng).find(p => p.id === poiId);
   },
   currentTab: "home",
@@ -118,7 +118,7 @@ const App = {
             }
           })
           .catch(() => {
-            this._setLocation({ ...DEFAULT_LOCATION, source: "default" });
+            App.toast("无法自动定位，请手动输入地址"); App.showLocationPicker();
             App.toast("定位失败，使用默认位置");
           });
       });
@@ -271,7 +271,7 @@ const App = {
   _generatePlan(parsedState) {
     this._showLoading("正在通过高德搜索周边...");
 
-    const loc = this.userLocation || DEFAULT_LOCATION;
+    const loc = this.userLocation; if (!loc) { this._hideLoading(); this.toast("请先获取定位"); return; }
     const useAmap = AmapService.isAvailable();
 
     const doPlan = (pois) => {
@@ -610,7 +610,7 @@ const App = {
         </div>
         <div style="font-size:14px;font-weight:600;margin-bottom:8px;">或手动输入地址：</div>
         <div class="location-search">
-          <input type="text" id="manualAddress" placeholder="输入地址，如：上海市黄浦区">
+          <input type="text" id="manualAddress" placeholder="输入城市或地址，如：北京市朝阳区">
           <button onclick="App._setManualAddress()">确定</button>
         </div>
         <div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:8px;">
@@ -640,11 +640,11 @@ const App = {
     if (!addr) return;
 
     const coordMap = {
-      "市中心": { lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng },
-      "商业街": { lat: DEFAULT_LOCATION.lat + 0.01, lng: DEFAULT_LOCATION.lng + 0.01 },
-      "滨水区": { lat: DEFAULT_LOCATION.lat - 0.008, lng: DEFAULT_LOCATION.lng + 0.012 },
-      "CBD": { lat: DEFAULT_LOCATION.lat - 0.012, lng: DEFAULT_LOCATION.lng - 0.005 },
-      "大学城": { lat: DEFAULT_LOCATION.lat + 0.015, lng: DEFAULT_LOCATION.lng - 0.01 },
+      "市中心": { lat: 31.2304, lng: 121.4737 },
+      "商业街": { lat: 31.2304 + 0.01, lng: 121.4737 + 0.01 },
+      "滨水区": { lat: 31.2304 - 0.008, lng: 121.4737 + 0.012 },
+      "CBD": { lat: 31.2304 - 0.012, lng: 121.4737 - 0.005 },
+      "大学城": { lat: 31.2304 + 0.015, lng: 121.4737 - 0.01 },
     };
 
     let coord = null;
@@ -657,8 +657,8 @@ const App = {
     } else {
       const offset = (addr.length % 10) * 0.005;
       this.userLocation = {
-        lat: DEFAULT_LOCATION.lat + offset,
-        lng: DEFAULT_LOCATION.lng + offset,
+        lat: 31.2304 + offset,
+        lng: 121.4737 + offset,
         address: addr,
         name: addr,
       };
@@ -743,6 +743,8 @@ const App = {
 
 // 启动应用
 document.addEventListener("DOMContentLoaded", () => App.init());
+
+
 
 
 

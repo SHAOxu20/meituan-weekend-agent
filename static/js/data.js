@@ -279,14 +279,13 @@ function filterPOIsByRating(pois, minRating) {
   return pois.filter(p => p.rating >= minRating);
 }
 
-// 默认位置（最终降级，通常会被 IP 定位覆盖）
-const DEFAULT_LOCATION = {
-  lat: 31.2304, lng: 121.4737,
-  address: "上海市黄浦区",
-  name: "上海市中心",
-};
+// 无硬编码默认位置——定位失败时弹窗引导手动输入
 
-// 兼容旧代码的全局 POI_DATABASE（默认使用上海坐标）
-const POI_DATABASE = getPOIDatabase(DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lng);
+
+// 全局 POI_DATABASE，首次定位后由 getPOIDatabase() 填充
+var POI_DATABASE = [];
+
+
+
 
 
